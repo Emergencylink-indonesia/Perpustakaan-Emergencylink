@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Perpustakaan Online</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
+    header { background-color: #2c3e50; color: white; padding: 1rem; text-align: center; }
+    .container { padding: 2rem; }
+    input[type="text"], input[type="password"] { width: 100%; padding: 0.5rem; margin-bottom: 1rem; }
+    .book-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+    .book { background: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .book h3 { margin: 0 0 0.5rem; }
+    .admin-panel, .user-panel { margin-top: 2rem; background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    .hidden { display: none; }
+    button { padding: 0.5rem 1rem; margin-top: 0.5rem; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .borrowed { color: red; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Perpustakaan Online</h1>
+  </header>
+  <div class="container">
+    <div id="loginForm">
+      <h2>Login</h2>
+      <input type="text" id="username" placeholder="Username">
+      <input type="password" id="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+    </div>
+    <div id="mainContent" class="hidden">
+      <p id="welcome"></p>
+      <input type="text" id="search" placeholder="Cari buku...">
+      <div class="book-list" id="bookList"></div>
+      <div id="adminPanel" class="admin-panel hidden">
+        <h2>Tambah Buku</h2>
+        <input type="text" id="newTitle" placeholder="Judul">
+        <input type="text" id="newAuthor" placeholder="Penulis">
+        <input type="text" id="newYear" placeholder="Tahun">
+        <input type="text" id="newCategory" placeholder="Kategori">
+        <input type="text" id="newLink" placeholder="Link PDF (opsional)">
+        <button onclick="addBook()">Tambah</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    let currentUser = null;
+    const users = [
+      { username: "admin", password: "admin123", role: "admin" },
+      { username: "user1", password: "user123", role: "user" }
+    ];
+    let books = JSON.parse(localStorage.getItem("books")) || [
+      { title: "Laskar Pelangi", author: "Andrea Hirata", year: 2005, category: "Fiksi", link: "", borrowed: false },
+      { title: "Negeri 5 Menara", author: "Ahmad Fuadi", year: 2009, category: "Fiksi", link: "", borrowed: false },
+      { title: "Sapiens", author: "Yuval Noah Harari", year: 2011, category: "Nonfiksi", link: "", borrowed: false }
+    ];
+    const bookList = document.getElementById("bookList");
+    const searchInput = document.getElementById("search");
+
+    function renderBooks(filter = "") {
+      bookList.innerHTML = "";
+      books.filter(book => book.title.toLowerCase().includes(filter.toLowerCase())).forEach((book, index) => {
+        const bookDiv = document.createElement("div");
+        bookDiv.className = "book";
+        bookDiv.innerHTML = `
+          <h3>${book.title}</h3>
+          <p><strong>Penulis:</strong> ${book.author}</p>
+          <p><strong>Tahun:</strong> ${book.year}</p>
+          <p><strong>Kategori:</strong> ${book.category}</p>
+          ${book.link ? `<p><a href="${book.link}" target="_blank">Unduh Buku</a></p>` : ""}
+          <p>Status: <span class="${book.borrowed ? 'borrowed' : ''}">${book.borrowed ? 'Dipinjam' : 'Tersedia'}</span></p>
+          ${currentUser?.role === 'user' && !book.borrowed ? `<button onclick="borrowBook(${index})">Pinjam</button>` : ""}
+          ${currentUser?.role === 'user' && book.borrowed ? `<button onclick="returnBook(${index})">Kembalikan</button>` : ""}
+        `;
+        bookList.appendChild(bookDiv);
+      });
+    }
+
+    function saveBooks() {
+      localStorage.setItem("books", JSON.stringify(books));
+    }
+
+    function addBook() {
+      const title = document.getElementById("newTitle").value;
+      const author = document.getElementById("newAuthor").value;
+      const year = document.getElementById("newYear").value;
+      const category = document.getElementById("newCategory").value;
+      const link = document.getElementById("newLink").value;
+      if (title && author && year && category) {
+        books.push({ title, author, year, category, link, borrowed: false });
+        saveBooks();
+        renderBooks(searchInput.value);
+        document.getElementById("newTitle").value = "";
+        document.getElementById("newAuthor").value = "";
+        document.getElementById("newYear").value = "";
+        document.getElementById("newCategory").value = "";
+        document.getElementById("newLink").value = "";
+      } else {
+        alert("Mohon isi semua field kecuali link jika tidak ada.");
+      }
+    }
+
+    function borrowBook(index) {
+      books[index].borrowed = true;
+      saveBooks();
+      renderBooks(searchInput.value);
+    }
+
+    function returnBook(index) {
+      books[index].borrowed = false;
+      saveBooks();
+      renderBooks(searchInput.value);
+    }
+
+    function login() {
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+      const user = users.find(u => u.username === username && u.password === password);
+      if (user) {
+        currentUser = user;
+        document.getElementById("loginForm").classList.add("hidden");
+        document.getElementById("mainContent").classList.remove("hidden");
+        document.getElementById("welcome").innerText = `Selamat datang, ${user.username} (${user.role})`;
+        if (user.role === "admin") {
+          document.getElementById("adminPanel").classList.remove("hidden");
+        }
+        renderBooks();
+      } else {
+        alert("Login gagal. Username dan password salah.");
+      }
+    }
+
+    searchInput?.addEventListener("input", () => {
+      renderBooks(searchInput.value);
+    });
+  </script>
+</body>
+</html>
